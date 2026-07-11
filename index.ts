@@ -43,6 +43,15 @@ async function run() {
             res.json(result)
         })
 
+        app.get('/api/own/usercollaction',async(req,res)=>{
+            const query: { email?: string } = {};
+            if (req.query.email) {
+                query.email = req.query.email as string;
+            }
+            const corsor = await userCollaction.findOne(query)
+            res.json(corsor)
+        })
+
 
 
 
