@@ -34,7 +34,8 @@ async function run() {
 
         const database = client.db(process.env.MONGODB_DB)
         const userCollaction = database.collection('usercollaction')
-        const users = database.collection('user')   
+        const users = database.collection('user') 
+        const reportsCollaction = database.collection('reportscollaction')  
 
 
           app.post('/api/usercollaction', async (req, res) => {
@@ -50,6 +51,14 @@ async function run() {
             }
             const corsor = await userCollaction.findOne(query)
             res.json(corsor)
+        })
+
+
+
+         app.post('/api/reports', async (req, res) => {
+            const requestdocs = req.body
+            const result = await reportsCollaction.insertOne(requestdocs)
+            res.json(result)
         })
 
 
