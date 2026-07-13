@@ -34,17 +34,29 @@ async function run() {
 
         const database = client.db(process.env.MONGODB_DB)
         const userCollaction = database.collection('usercollaction')
-        const users = database.collection('user') 
-        const reportsCollaction = database.collection('reportscollaction')  
+        const users = database.collection('user')
+        const reportsCollaction = database.collection('reportscollaction')
+        const notice = database.collection('notice')
 
 
-          app.post('/api/usercollaction', async (req, res) => {
+        app.post('/api/usercollaction', async (req, res) => {
             const userdocs = req.body
             const result = await userCollaction.insertOne(userdocs)
             res.json(result)
         })
 
-        app.get('/api/own/usercollaction',async(req,res)=>{
+        app.post('/api/notice', async (req, res) => {
+            const newnotice = req.body
+            const result = await notice.insertOne(newnotice)
+            res.json(result)
+        })
+        app.get('/api/notice', async (req, res) => {
+            const newnotice = req.body
+            const result = await notice.find(newnotice).toArray()
+            res.json(result)
+        })
+
+        app.get('/api/own/usercollaction', async (req, res) => {
             const query: { email?: string } = {};
             if (req.query.email) {
                 query.email = req.query.email as string;
@@ -52,19 +64,19 @@ async function run() {
             const corsor = await userCollaction.findOne(query)
             res.json(corsor)
         })
-        app.patch('/api/own/usercollaction',async(req,res)=>{
+        app.patch('/api/own/usercollaction', async (req, res) => {
             const query: { email?: string } = {};
             const updateData = req.body
             if (req.query.email) {
                 query.email = req.query.email as string;
             }
-                 const updateDocument = {
+            const updateDocument = {
                 $set: { ...updateData }
             }
 
             const corsor = await userCollaction.updateOne(query, updateDocument)
             const result = await users.updateOne({ email: req.query.email as string }, {
-                $set:  {
+                $set: {
                     name: updateData.name,
                     image: updateData.image
                 }
@@ -74,7 +86,7 @@ async function run() {
 
 
 
-           app.get('/api/pegination/users', async (req, res) => {
+        app.get('/api/pegination/users', async (req, res) => {
             const { page = 1, limit = 10 } = req.query
             const skip = (Number(page) - 1) * Number(limit)
 
@@ -87,16 +99,16 @@ async function run() {
 
 
 
-         app.post('/api/reports', async (req, res) => {
+        app.post('/api/reports', async (req, res) => {
             const requestdocs = req.body
             const result = await reportsCollaction.insertOne(requestdocs)
             res.json(result)
         })
 
-         app.get('/api/owncitizen/pegination/reports', async (req, res) => {
+        app.get('/api/owncitizen/pegination/reports', async (req, res) => {
             const { page = 1, limit = 10 } = req.query
             const skip = (Number(page) - 1) * Number(limit)
-            const query : {citizenEmail?:string}={};
+            const query: { citizenEmail?: string } = {};
 
             if (req.query.citizenEmail) {
                 query.citizenEmail = req.query.citizenEmail as string
@@ -106,16 +118,20 @@ async function run() {
             const totalPage = Math.ceil(totalData / Number(limit));
             res.json({ data: result, page: Number(page), totalPage })
         })
-         app.get('/api/adminofficer/owncitizen/pegination/reports', async (req, res) => {
+        app.get('/api/adminofficer/pegination/reports', async (req, res) => {
             const { page = 1, limit = 10 } = req.query
             const skip = (Number(page) - 1) * Number(limit)
-        
+
 
             const result = await reportsCollaction.find().skip(skip).limit(Number(limit)).toArray()
             const totalData = await reportsCollaction.countDocuments();
             const totalPage = Math.ceil(totalData / Number(limit));
             res.json({ data: result, page: Number(page), totalPage })
         })
+
+
+
+
 
 
 
