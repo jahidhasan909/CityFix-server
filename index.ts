@@ -52,6 +52,25 @@ async function run() {
             const corsor = await userCollaction.findOne(query)
             res.json(corsor)
         })
+        app.patch('/api/own/usercollaction',async(req,res)=>{
+            const query: { email?: string } = {};
+            const updateData = req.body
+            if (req.query.email) {
+                query.email = req.query.email as string;
+            }
+                 const updateDocument = {
+                $set: { ...updateData }
+            }
+
+            const corsor = await userCollaction.updateOne(query, updateDocument)
+            const result = await users.updateOne({ email: req.query.email as string }, {
+                $set:  {
+                    name: updateData.name,
+                    image: updateData.image
+                }
+            })
+            res.json({ corsor, result })
+        })
 
 
 
@@ -59,6 +78,20 @@ async function run() {
             const requestdocs = req.body
             const result = await reportsCollaction.insertOne(requestdocs)
             res.json(result)
+        })
+
+         app.get('/api/owncitizen/pegination/reports', async (req, res) => {
+            const { page = 1, limit = 10 } = req.query
+            const skip = (Number(page) - 1) * Number(limit)
+            const query : {citizenEmail?:string}={};
+
+            if (req.query.citizenEmail) {
+                query.citizenEmail = req.query.citizenEmail as string
+            }
+            const result = await reportsCollaction.find(query).skip(skip).limit(Number(limit)).toArray()
+            const totalData = await reportsCollaction.countDocuments(query);
+            const totalPage = Math.ceil(totalData / Number(limit));
+            res.json({ data: result, page: Number(page), totalPage })
         })
 
 
