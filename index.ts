@@ -106,6 +106,16 @@ async function run() {
             const totalPage = Math.ceil(totalData / Number(limit));
             res.json({ data: result, page: Number(page), totalPage })
         })
+         app.get('/api/adminofficer/owncitizen/pegination/reports', async (req, res) => {
+            const { page = 1, limit = 10 } = req.query
+            const skip = (Number(page) - 1) * Number(limit)
+        
+
+            const result = await reportsCollaction.find().skip(skip).limit(Number(limit)).toArray()
+            const totalData = await reportsCollaction.countDocuments();
+            const totalPage = Math.ceil(totalData / Number(limit));
+            res.json({ data: result, page: Number(page), totalPage })
+        })
 
 
 
