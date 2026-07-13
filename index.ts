@@ -74,6 +74,19 @@ async function run() {
 
 
 
+           app.get('/api/pegination/users', async (req, res) => {
+            const { page = 1, limit = 10 } = req.query
+            const skip = (Number(page) - 1) * Number(limit)
+
+
+            const result = await userCollaction.find().skip(skip).limit(Number(limit)).toArray()
+            const totalData = await userCollaction.countDocuments();
+            const totalPage = Math.ceil(totalData / Number(limit));
+            res.json({ data: result, page: Number(page), totalPage })
+        })
+
+
+
          app.post('/api/reports', async (req, res) => {
             const requestdocs = req.body
             const result = await reportsCollaction.insertOne(requestdocs)
