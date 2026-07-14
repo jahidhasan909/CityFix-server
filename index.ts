@@ -114,6 +114,72 @@ async function run() {
 
 
 
+
+          app.patch('/api/report/edit/:id', async (req, res) => {
+            const id = req.params.id
+
+            const updateData = req.body
+
+
+            const fillter = { _id: new ObjectId(id) }
+            const updateDocument = {
+                $set: { ...updateData }
+            }
+
+            const result = await reportsCollaction.updateOne(fillter, updateDocument)
+            res.json(result)
+
+        })
+
+          app.get('/api/reports/:id', async (req, res) => {
+            const id = req.params.id
+
+            
+
+
+            const fillter = { _id: new ObjectId(id) }
+
+
+            const result = await reportsCollaction.findOne(fillter)
+            res.json(result)
+
+        })
+
+
+
+
+
+
+            app.delete('/api/own/reports/:id', async (req, res) => {
+            const id = req.params.id
+            const query = {
+                _id: new ObjectId(id)
+            }
+
+            const result = await reportsCollaction.deleteOne(query)
+            res.json(result)
+
+        })
+
+
+
+
+
+
+
+        
+
+
+
+
+
+
+
+
+
+
+
+
         app.get('/api/notice', async (req, res) => {
             const result = await notice.find().toArray()
             res.json(result)
@@ -123,6 +189,21 @@ async function run() {
             const result = await publicComments.find(newcommemts).toArray()
             res.json(result)
         })
+        app.get('/api/own/publiccomments', async (req, res) => {
+            try {
+                const { reportId } = req.query; 
+
+                let query = {};
+                if (reportId) {
+                    query = { reportId: reportId }; 
+                }
+
+                const result = await publicComments.find(query).toArray();
+                res.json(result);
+            } catch (error) {
+                res.status(500).json({ error: "Failed to fetch comments" });
+            }
+        });
         app.post('/api/publiccomments', async (req, res) => {
             const newcommemts = req.body
             const result = await publicComments.insertOne(newcommemts)
