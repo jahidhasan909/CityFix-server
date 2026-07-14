@@ -37,8 +37,8 @@ async function run() {
         const users = database.collection('user')
         const reportsCollaction = database.collection('reportscollaction')
         const notice = database.collection('notice')
-        const campaing=database.collection('campaing')
-        const publicComments=database.collection('publiccomments')
+        const campaing = database.collection('campaing')
+        const publicComments = database.collection('publiccomments')
 
 
         app.post('/api/usercollaction', async (req, res) => {
@@ -61,6 +61,31 @@ async function run() {
             const result = await campaing.find().toArray()
             res.json(result)
         })
+       app.patch('/api/campaing/:id', async (req, res) => {
+    const { id } = req.params;
+    const attendeeData = req.body;
+
+    const query = { _id: new ObjectId(id) };
+
+
+    const updateDocument = {
+        $push: {
+            attendees: {
+                name: attendeeData.name,
+                email: attendeeData.email,
+                attendedAt: new Date()
+            }
+        }
+    } as any; 
+
+    try {
+        const result = await campaing.updateOne(query, updateDocument);
+        res.json(result);
+    } catch (error) {
+        console.error("Database update error:", error);
+        res.status(500).json({ error: "Failed to update attendance" });
+    }
+});
 
 
 
@@ -169,7 +194,7 @@ async function run() {
 
 
 
-        
+
 
 
 
