@@ -61,6 +61,14 @@ async function run() {
             const result = await campaing.find().toArray()
             res.json(result)
         })
+        app.get('/api/campaing/:id', async (req, res) => {
+            const { id } = req.params;
+            const fillter = {
+                _id: new ObjectId(id)
+            }
+            const result = await campaing.find(fillter).toArray()
+            res.json(result)
+        })
         app.patch('/api/campaing/:id', async (req, res) => {
             const { id } = req.params;
             const attendeeData = req.body;
@@ -115,7 +123,7 @@ async function run() {
 
 
 
-          app.patch('/api/report/edit/:id', async (req, res) => {
+        app.patch('/api/report/edit/:id', async (req, res) => {
             const id = req.params.id
 
             const updateData = req.body
@@ -131,10 +139,10 @@ async function run() {
 
         })
 
-          app.get('/api/reports/:id', async (req, res) => {
+        app.get('/api/reports/:id', async (req, res) => {
             const id = req.params.id
 
-            
+
 
 
             const fillter = { _id: new ObjectId(id) }
@@ -150,13 +158,127 @@ async function run() {
 
 
 
-            app.delete('/api/own/reports/:id', async (req, res) => {
+        app.delete('/api/own/reports/:id', async (req, res) => {
             const id = req.params.id
             const query = {
                 _id: new ObjectId(id)
             }
 
             const result = await reportsCollaction.deleteOne(query)
+            res.json(result)
+
+        })
+        app.delete('/api/campaing/:id', async (req, res) => {
+            const id = req.params.id
+            const query = {
+                _id: new ObjectId(id)
+            }
+
+            const result = await campaing.deleteOne(query)
+            res.json(result)
+
+        })
+
+
+
+
+
+        app.patch('/api/usercollaction/makeblock', async (req, res) => {
+            const query: { email?: string } = {};
+            if (req.query.email) {
+                query.email = req.query.email as string
+            }
+            const updateDocument = {
+                $set: {
+                    status: 'blocked'
+                }
+            }
+
+            const result = await userCollaction.updateOne(query, updateDocument)
+
+            res.json(result)
+
+        })
+        app.patch('/api/usercollaction/unblocked', async (req, res) => {
+            const query: { email?: string } = {};
+            if (req.query.email) {
+                query.email = req.query.email as string
+            }
+            const updateDocument = {
+                $set: {
+                    status: 'active'
+                }
+            }
+
+            const result = await userCollaction.updateOne(query, updateDocument)
+
+            res.json(result)
+
+        })
+
+
+        app.patch('/api/usercollaction/makeadmin', async (req, res) => {
+            const query: { email?: string } = {};
+            if (req.query.email) {
+                query.email = req.query.email as string
+            }
+            const updateDocument = {
+                $set: {
+                    role: 'admin'
+                }
+            }
+
+            const result = await userCollaction.updateOne(query, updateDocument)
+
+            res.json(result)
+
+        })
+
+        app.patch('/api/usercollaction/makeofficer', async (req, res) => {
+            const query: { email?: string } = {};
+            if (req.query.email) {
+                query.email = req.query.email as string
+            }
+            const updateDocument = {
+                $set: {
+                    role: 'officer'
+                }
+            }
+
+            const result = await userCollaction.updateOne(query, updateDocument)
+
+            res.json(result)
+
+        })
+        app.patch('/api/usercollaction/suspend', async (req, res) => {
+            const query: { email?: string } = {};
+            if (req.query.email) {
+                query.email = req.query.email as string
+            }
+            const updateDocument = {
+                $set: {
+                    status: 'suspended'
+                }
+            }
+
+            const result = await userCollaction.updateOne(query, updateDocument)
+
+            res.json(result)
+
+        })
+        app.patch('/api/usercollaction/unsuspend', async (req, res) => {
+            const query: { email?: string } = {};
+            if (req.query.email) {
+                query.email = req.query.email as string
+            }
+            const updateDocument = {
+                $set: {
+                    status: 'active'
+                }
+            }
+
+            const result = await userCollaction.updateOne(query, updateDocument)
+
             res.json(result)
 
         })
@@ -167,7 +289,7 @@ async function run() {
 
 
 
-        
+
 
 
 
@@ -191,11 +313,11 @@ async function run() {
         })
         app.get('/api/own/publiccomments', async (req, res) => {
             try {
-                const { reportId } = req.query; 
+                const { reportId } = req.query;
 
                 let query = {};
                 if (reportId) {
-                    query = { reportId: reportId }; 
+                    query = { reportId: reportId };
                 }
 
                 const result = await publicComments.find(query).toArray();
