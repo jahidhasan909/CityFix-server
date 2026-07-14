@@ -39,7 +39,7 @@ async function run() {
         const notice = database.collection('notice')
         const campaing = database.collection('campaing')
         const publicComments = database.collection('publiccomments')
-
+        const funding = database.collection('funding')
 
         app.post('/api/usercollaction', async (req, res) => {
             const userdocs = req.body
@@ -61,31 +61,56 @@ async function run() {
             const result = await campaing.find().toArray()
             res.json(result)
         })
-       app.patch('/api/campaing/:id', async (req, res) => {
-    const { id } = req.params;
-    const attendeeData = req.body;
+        app.patch('/api/campaing/:id', async (req, res) => {
+            const { id } = req.params;
+            const attendeeData = req.body;
 
-    const query = { _id: new ObjectId(id) };
+            const query = { _id: new ObjectId(id) };
 
 
-    const updateDocument = {
-        $push: {
-            attendees: {
-                name: attendeeData.name,
-                email: attendeeData.email,
-                attendedAt: new Date()
+            const updateDocument = {
+                $push: {
+                    attendees: {
+                        name: attendeeData.name,
+                        email: attendeeData.email,
+                        attendedAt: new Date()
+                    }
+                }
+            } as any;
+
+            try {
+                const result = await campaing.updateOne(query, updateDocument);
+                res.json(result);
+            } catch (error) {
+                console.error("Database update error:", error);
+                res.status(500).json({ error: "Failed to update attendance" });
             }
-        }
-    } as any; 
+        });
 
-    try {
-        const result = await campaing.updateOne(query, updateDocument);
-        res.json(result);
-    } catch (error) {
-        console.error("Database update error:", error);
-        res.status(500).json({ error: "Failed to update attendance" });
-    }
-});
+
+
+
+
+
+        app.post('/api/funding', async (req, res) => {
+            const fundingdetails = req.body
+            const result = await funding.insertOne(fundingdetails)
+            res.json(result)
+        })
+        app.get('/api/funding', async (req, res) => {
+            const cursor = await funding.find().toArray()
+            res.json(cursor)
+        })
+        app.get('/api/pegination/funding', async (req, res) => {
+            const { page = 1, limit = 10 } = req.query
+            const skip = (Number(page) - 1) * Number(limit)
+
+
+            const result = await funding.find().skip(skip).limit(Number(limit)).toArray()
+            const totalData = await funding.countDocuments();
+            const totalPage = Math.ceil(totalData / Number(limit));
+            res.json({ data: result, page: Number(page), totalPage })
+        })
 
 
 
