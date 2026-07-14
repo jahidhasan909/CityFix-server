@@ -37,6 +37,8 @@ async function run() {
         const users = database.collection('user')
         const reportsCollaction = database.collection('reportscollaction')
         const notice = database.collection('notice')
+        const campaing=database.collection('campaing')
+        const publicComments=database.collection('publiccomments')
 
 
         app.post('/api/usercollaction', async (req, res) => {
@@ -50,9 +52,30 @@ async function run() {
             const result = await notice.insertOne(newnotice)
             res.json(result)
         })
+        app.post('/api/campaing', async (req, res) => {
+            const newcampaing = req.body
+            const result = await campaing.insertOne(newcampaing)
+            res.json(result)
+        })
+        app.get('/api/campaing', async (req, res) => {
+            const result = await campaing.find().toArray()
+            res.json(result)
+        })
+
+
+
         app.get('/api/notice', async (req, res) => {
-            const newnotice = req.body
-            const result = await notice.find(newnotice).toArray()
+            const result = await notice.find().toArray()
+            res.json(result)
+        })
+        app.get('/api/publiccomments', async (req, res) => {
+            const newcommemts = req.body
+            const result = await publicComments.find(newcommemts).toArray()
+            res.json(result)
+        })
+        app.post('/api/publiccomments', async (req, res) => {
+            const newcommemts = req.body
+            const result = await publicComments.insertOne(newcommemts)
             res.json(result)
         })
 
@@ -96,12 +119,27 @@ async function run() {
             const totalPage = Math.ceil(totalData / Number(limit));
             res.json({ data: result, page: Number(page), totalPage })
         })
+        app.get('/api/pegination/campaing', async (req, res) => {
+            const { page = 1, limit = 10 } = req.query
+            const skip = (Number(page) - 1) * Number(limit)
+
+
+            const result = await campaing.find().skip(skip).limit(Number(limit)).toArray()
+            const totalData = await campaing.countDocuments();
+            const totalPage = Math.ceil(totalData / Number(limit));
+            res.json({ data: result, page: Number(page), totalPage })
+        })
 
 
 
         app.post('/api/reports', async (req, res) => {
             const requestdocs = req.body
             const result = await reportsCollaction.insertOne(requestdocs)
+            res.json(result)
+        })
+        app.get('/api/public/reports', async (req, res) => {
+            const requestdocs = req.body
+            const result = await reportsCollaction.find(requestdocs).toArray()
             res.json(result)
         })
 
@@ -128,6 +166,10 @@ async function run() {
             const totalPage = Math.ceil(totalData / Number(limit));
             res.json({ data: result, page: Number(page), totalPage })
         })
+
+
+
+        
 
 
 
