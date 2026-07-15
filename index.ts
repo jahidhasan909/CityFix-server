@@ -1,8 +1,15 @@
-import express from "express";
-import type { Express } from "express";
+
 import { MongoClient, ServerApiVersion, ObjectId } from "mongodb";
 import cors from "cors";
 import dotenv from "dotenv";
+import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose-cjs";
+import express, {
+  type Express,
+  type Request,
+  type Response,
+  type NextFunction,
+} from "express";
+
 
 
 dotenv.config();
@@ -27,6 +34,58 @@ const client = new MongoClient(uri!, {
 
 
 
+
+
+
+
+
+const JWKS = createRemoteJWKSet(
+  new URL(process.env.JWKSUSER_URI as string)
+);
+
+export interface AuthRequest extends Request {
+  user?: JWTPayload;
+}
+
+export const verifyToken = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    res.status(401).json({ msg: "Unauthorized" });
+    return;
+  }
+
+  const token = authHeader.split(" ")[1];
+
+  if (!token) {
+    res.status(401).json({ msg: "Unauthorized" });
+    return;
+  }
+
+  try {
+    const { payload } = await jwtVerify(token, JWKS);
+    console.log(payload,'play');
+    
+
+    req.user = payload;
+
+    next();
+  } catch (error) {
+    console.error(error);
+
+    res.status(401).json({ msg: "Unauthorized" });
+  }
+};
+
+
+
+
+
+
 async function run() {
     try {
         // await client.connect();
@@ -46,8 +105,12 @@ async function run() {
             const result = await userCollaction.insertOne(userdocs)
             res.json(result)
         })
+        app.get('/api/usercollaction', async (req, res) => {
+            const result = await userCollaction.find().toArray()
+            res.json(result)
+        })
 
-        app.post('/api/notice', async (req, res) => {
+        app.post('/api/notice',verifyToken, async (req, res) => {
             const newnotice = req.body
             const result = await notice.insertOne(newnotice)
             res.json(result)
@@ -107,6 +170,10 @@ async function run() {
         })
         app.get('/api/funding', async (req, res) => {
             const cursor = await funding.find().toArray()
+            res.json(cursor)
+        })
+        app.get('/api/reports', async (req, res) => {
+            const cursor = await reportsCollaction.find().toArray()
             res.json(cursor)
         })
         app.get('/api/pegination/funding', async (req, res) => {
@@ -178,6 +245,16 @@ async function run() {
             res.json(result)
 
         })
+        app.delete('/api/notice/:id', async (req, res) => {
+            const id = req.params.id
+            const query = {
+                _id: new ObjectId(id)
+            }
+
+            const result = await notice.deleteOne(query)
+            res.json(result)
+
+        })
 
 
 
@@ -215,20 +292,51 @@ async function run() {
             res.json(result)
 
         })
+        app.patch('/api/reports/inprogress/:id', async (req, res) => {
+            const id = req.params.id
 
-
-        app.patch('/api/usercollaction/makeadmin', async (req, res) => {
-            const query: { email?: string } = {};
-            if (req.query.email) {
-                query.email = req.query.email as string
-            }
+            const fillter = { _id: new ObjectId(id) }
             const updateDocument = {
                 $set: {
-                    role: 'admin'
+                    status: 'inprogress'
                 }
             }
 
-            const result = await userCollaction.updateOne(query, updateDocument)
+            const result = await reportsCollaction.updateOne(fillter, updateDocument)
+
+            res.json(result)
+
+        })
+
+
+        app.patch('/api/reports/cancelled/:id', async (req, res) => {
+            const id = req.params.id
+
+            const fillter = { _id: new ObjectId(id) }
+            const updateDocument = {
+                $set: {
+                    status: 'cancelled'
+                }
+            }
+
+            const result = await reportsCollaction.updateOne(fillter, updateDocument)
+
+            res.json(result)
+
+        })
+
+
+        app.patch('/api/reports/resolved/:id', async (req, res) => {
+            const id = req.params.id
+
+            const fillter = { _id: new ObjectId(id) }
+            const updateDocument = {
+                $set: {
+                    status: 'resolved'
+                }
+            }
+
+            const result = await reportsCollaction.updateOne(fillter, updateDocument)
 
             res.json(result)
 
