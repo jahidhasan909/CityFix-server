@@ -1,5 +1,4 @@
-
-import { MongoClient, ServerApiVersion, ObjectId } from "mongodb";
+import { MongoClient, ServerApiVersion, ObjectId, Db } from "mongodb";
 import cors from "cors";
 import dotenv from "dotenv";
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose-cjs";
@@ -10,19 +9,19 @@ import express, {
   type NextFunction,
 } from "express";
 
-
-
 dotenv.config();
 
 const app: Express = express();
-
 const port: number = Number(process.env.PORT) || 8000;
 
-
 app.use(cors());
-app.use(express.json())
+app.use(express.json());
 
-const uri = process.env.MONGODB_URI
+const uri = process.env.MONGODB_URI;
+
+if (!uri) {
+  console.error("MONGODB_URI is not defined in env variables!");
+}
 
 const client = new MongoClient(uri!, {
     serverApi: {
@@ -32,12 +31,33 @@ const client = new MongoClient(uri!, {
     }
 });
 
+let cachedDb: Db | null = null;
+
+async function getDatabase(): Promise<Db> {
+  if (cachedDb) {
+    return cachedDb;
+  }
+  await client.connect();
+  const db = client.db(process.env.MONGODB_DB || 'cityfix-db');
+  cachedDb = db;
+  return db;
+}
 
 
-
-
-
-
+async function getCollections() {
+  const db = await getDatabase();
+  return {
+    userCollaction: db.collection('usercollaction'),
+    users: db.collection('user'),
+    reportsCollaction: db.collection('reportscollaction'),
+    notice: db.collection('notice'),
+    campaing: db.collection('campaing'),
+    publicComments: db.collection('publiccomments'),
+    funding: db.collection('funding'),
+    like: db.collection('like'),
+    unlike: db.collection('unlike'),
+  };
+}
 
 const JWKS = createRemoteJWKSet(
   new URL(process.env.JWKSUSER_URI as string)
@@ -68,547 +88,474 @@ export const verifyToken = async (
 
   try {
     const { payload } = await jwtVerify(token, JWKS);
-    
-    
-
     req.user = payload;
-
     next();
   } catch (error) {
     console.error(error);
-
     res.status(401).json({ msg: "Unauthorized" });
   }
 };
 
 
 
-
-
-
-async function run() {
-    try {
-        // await client.connect();
-        // await client.db("admin").command({ ping: 1 });
-
-        const database = client.db(process.env.MONGODB_DB)
-        const userCollaction = database.collection('usercollaction')
-        const users = database.collection('user')
-        const reportsCollaction = database.collection('reportscollaction')
-        const notice = database.collection('notice')
-        const campaing = database.collection('campaing')
-        const publicComments = database.collection('publiccomments')
-        const funding = database.collection('funding')
-        const like=database.collection('like')
-        const unlike=database.collection('unlike')
-
-
-
-    
-
-
-      
+app.get('/', (req, res) => {
+    res.send('Hello CityFix Server is Running!')
+});
 
 app.post('/api/like', async (req, res) => {
-    const { reportId } = req.body;
-    if (!reportId) return res.status(400).json({ error: "reportId is required" });
-    
-   
-    const result = await like.insertOne({ reportId, createdAt: new Date() });
-    res.json(result);
+    try {
+        const { reportId } = req.body;
+        if (!reportId) return res.status(400).json({ error: "reportId is required" });
+        const collections = await getCollections();
+        const result = await collections.like.insertOne({ reportId, createdAt: new Date() });
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
-
 
 app.get('/api/like', async (req, res) => {
-    const { reportId } = req.query;
-    if (!reportId) return res.status(400).json({ error: "reportId is required" });
-    
-    
-    const count = await like.countDocuments({ reportId });
-    res.json({ count });
+    try {
+        const { reportId } = req.query;
+        if (!reportId) return res.status(400).json({ error: "reportId is required" });
+        const collections = await getCollections();
+        const count = await collections.like.countDocuments({ reportId: reportId as string });
+        res.json({ count });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
-
 
 app.post('/api/unlike', async (req, res) => {
-    const { reportId } = req.body;
-    if (!reportId) return res.status(400).json({ error: "reportId is required" });
-    
-    const result = await unlike.insertOne({ reportId, createdAt: new Date() });
-    res.json(result);
+    try {
+        const { reportId } = req.body;
+        if (!reportId) return res.status(400).json({ error: "reportId is required" });
+        const collections = await getCollections();
+        const result = await collections.unlike.insertOne({ reportId, createdAt: new Date() });
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
-
 
 app.get('/api/unlike', async (req, res) => {
-    const { reportId } = req.query;
-    if (!reportId) return res.status(400).json({ error: "reportId is required" });
-    
-    const count = await unlike.countDocuments({ reportId });
-    res.json({ count });
+    try {
+        const { reportId } = req.query;
+        if (!reportId) return res.status(400).json({ error: "reportId is required" });
+        const collections = await getCollections();
+        const count = await collections.unlike.countDocuments({ reportId: reportId as string });
+        res.json({ count });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/usercollaction', async (req, res) => {
+    try {
+        const userdocs = req.body;
+        const collections = await getCollections();
+        const result = await collections.userCollaction.insertOne(userdocs);
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/usercollaction', async (req, res) => {
+    try {
+        const collections = await getCollections();
+        const result = await collections.userCollaction.find().toArray();
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/notice', verifyToken, async (req, res) => {
+    try {
+        const newnotice = req.body;
+        const collections = await getCollections();
+        const result = await collections.notice.insertOne(newnotice);
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/campaing', async (req, res) => {
+    try {
+        const newcampaing = req.body;
+        const collections = await getCollections();
+        const result = await collections.campaing.insertOne(newcampaing);
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/campaing', async (req, res) => {
+    try {
+        const collections = await getCollections();
+        const result = await collections.campaing.find().toArray();
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/campaing/:id', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const filter = { _id: new ObjectId(id) };
+        const collections = await getCollections();
+        const result = await collections.campaing.find(filter).toArray();
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch('/api/campaing/:id', async (req, res) => {
+    const { id } = req.params;
+    const attendeeData = req.body;
+    const query = { _id: new ObjectId(id) };
+    const updateDocument = {
+        $push: {
+            attendees: {
+                name: attendeeData.name,
+                email: attendeeData.email,
+                attendedAt: new Date()
+            }
+        }
+    } as any;
+
+    try {
+        const collections = await getCollections();
+        const result = await collections.campaing.updateOne(query, updateDocument);
+        res.json(result);
+    } catch (error) {
+        console.error("Database update error:", error);
+        res.status(500).json({ error: "Failed to update attendance" });
+    }
+});
+
+app.post('/api/funding', async (req, res) => {
+    try {
+        const fundingdetails = req.body;
+        const collections = await getCollections();
+        const result = await collections.funding.insertOne(fundingdetails);
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/funding', async (req, res) => {
+    try {
+        const collections = await getCollections();
+        const cursor = await collections.funding.find().toArray();
+        res.json(cursor);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/reports', async (req, res) => {
+    try {
+        const collections = await getCollections();
+        const cursor = await collections.reportsCollaction.find().toArray();
+        res.json(cursor);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/pegination/funding', async (req, res) => {
+    try {
+        const { page = 1, limit = 10 } = req.query;
+        const skip = (Number(page) - 1) * Number(limit);
+        const collections = await getCollections();
+        const result = await collections.funding.find().skip(skip).limit(Number(limit)).toArray();
+        const totalData = await collections.funding.countDocuments();
+        const totalPage = Math.ceil(totalData / Number(limit));
+        res.json({ data: result, page: Number(page), totalPage });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch('/api/report/edit/:id', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const updateData = req.body;
+        const filter = { _id: new ObjectId(id) };
+        const updateDocument = { $set: { ...updateData } };
+        const collections = await getCollections();
+        const result = await collections.reportsCollaction.updateOne(filter, updateDocument);
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/reports/:id', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const filter = { _id: new ObjectId(id) };
+        const collections = await getCollections();
+        const result = await collections.reportsCollaction.findOne(filter);
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/own/reports/:id', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const collections = await getCollections();
+        const result = await collections.reportsCollaction.deleteOne(query);
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/campaing/:id', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const collections = await getCollections();
+        const result = await collections.campaing.deleteOne(query);
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/notice/:id', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const query = { _id: new ObjectId(id) };
+        const collections = await getCollections();
+        const result = await collections.notice.deleteOne(query);
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch('/api/usercollaction/makeblock', verifyToken, async (req, res) => {
+    try {
+        const query: { email?: string } = {};
+        if (req.query.email) {
+            query.email = req.query.email as string;
+        }
+        const updateDocument = { $set: { status: 'blocked' } };
+        const collections = await getCollections();
+        const result = await collections.userCollaction.updateOne(query, updateDocument);
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch('/api/usercollaction/unblocked', verifyToken, async (req, res) => {
+    try {
+        const query: { email?: string } = {};
+        if (req.query.email) {
+            query.email = req.query.email as string;
+        }
+        const updateDocument = { $set: { status: 'active' } };
+        const collections = await getCollections();
+        const result = await collections.userCollaction.updateOne(query, updateDocument);
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch('/api/reports/inprogress/:id', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const filter = { _id: new ObjectId(id) };
+        const updateDocument = { $set: { status: 'inprogress' } };
+        const collections = await getCollections();
+        const result = await collections.reportsCollaction.updateOne(filter, updateDocument);
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch('/api/reports/cancelled/:id', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const filter = { _id: new ObjectId(id) };
+        const updateDocument = { $set: { status: 'cancelled' } };
+        const collections = await getCollections();
+        const result = await collections.reportsCollaction.updateOne(filter, updateDocument);
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch('/api/reports/resolved/:id', async (req, res) => {
+    try {
+        const id = req.params.id;
+        const filter = { _id: new ObjectId(id) };
+        const updateDocument = { $set: { status: 'resolved' } };
+        const collections = await getCollections();
+        const result = await collections.reportsCollaction.updateOne(filter, updateDocument);
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch('/api/usercollaction/makeofficer', verifyToken, async (req, res) => {
+    try {
+        const query: { email?: string } = {};
+        if (req.query.email) {
+            query.email = req.query.email as string;
+        }
+        const updateDocument = { $set: { role: 'officer' } };
+        const collections = await getCollections();
+        const result = await collections.userCollaction.updateOne(query, updateDocument);
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch('/api/usercollaction/suspend', verifyToken, async (req, res) => {
+    try {
+        const query: { email?: string } = {};
+        if (req.query.email) {
+            query.email = req.query.email as string;
+        }
+        const updateDocument = { $set: { status: 'suspended' } };
+        const collections = await getCollections();
+        const result = await collections.userCollaction.updateOne(query, updateDocument);
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch('/api/usercollaction/unsuspend', verifyToken, async (req, res) => {
+    try {
+        const query: { email?: string } = {};
+        if (req.query.email) {
+            query.email = req.query.email as string;
+        }
+        const updateDocument = { $set: { status: 'active' } };
+        const collections = await getCollections();
+        const result = await collections.userCollaction.updateOne(query, updateDocument);
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/notice', async (req, res) => {
+    try {
+        const collections = await getCollections();
+        const result = await collections.notice.find().toArray();
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/publiccomments', async (req, res) => {
+    try {
+        const newcommemts = req.body;
+        const collections = await getCollections();
+        const result = await collections.publicComments.find(newcommemts).toArray();
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/own/publiccomments', async (req, res) => {
+    try {
+        const { reportId } = req.query;
+        let query = {};
+        if (reportId) {
+            query = { reportId: reportId };
+        }
+        const collections = await getCollections();
+        const result = await collections.publicComments.find(query).toArray();
+        res.json(result);
+    } catch (error) {
+        res.status(500).json({ error: "Failed to fetch comments" });
+    }
+});
+
+app.post('/api/publiccomments', async (req, res) => {
+    try {
+        const newcommemts = req.body;
+        const collections = await getCollections();
+        const result = await collections.publicComments.insertOne(newcommemts);
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/own/usercollaction', async (req, res) => {
+    try {
+        const query: { email?: string } = {};
+        if (req.query.email) {
+            query.email = req.query.email as string;
+        }
+        const collections = await getCollections();
+        const cursor = await collections.userCollaction.findOne(query);
+        res.json(cursor);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.patch('/api/own/usercollaction', async (req, res) => {
+    try {
+        const query: { email?: string } = {};
+        const updateData = req.body;
+        if (req.query.email) {
+            query.email = req.query.email as string;
+        }
+        const updateDocument = { $set: { ...updateData } };
+        const collections = await getCollections();
+        const cursor = await collections.userCollaction.updateOne(query, updateDocument);
+        const result = await collections.users.updateOne({ email: req.query.email as string }, {
+            $set: {
+                name: updateData.name,
+                image: updateData.image
+            }
+        });
+        res.json({ cursor, result });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/pegination/users', async (req, res) => {
+    try {
+        const { page = 1, limit = 10 } = req.query;
+        const skip = (Number(page) - 1) * Number(limit);
+        const collections = await getCollections();
+        const result = await collections.userCollaction.find().skip(skip).limit(Number(limit)).toArray();
+        const totalData = await collections.userCollaction.countDocuments();
+        const totalPage = Math.ceil(totalData / Number(limit));
+        res.json({ data: result, page: Number(page), totalPage });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/pegination/campaing', async (req, res) => {
+    try {
+        const { page = 1, limit = 10 } = req.query;
+        const skip = (Number(page) - 1) * Number(limit);
+        const collections = await getCollections();
+        const result = await collections.campaing.find().skip(skip).limit(Number(limit)).toArray();
+        const totalData = await collections.campaing.countDocuments();
+        const totalPage = Math.ceil(totalData / Number(limit));
+        res.json({ data: result, page: Number(page), totalPage });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/reports', async (req, res) => {
+    try {
+        const requestdocs = req.body;
+        const collections = await getCollections();
+        const result = await collections.reportsCollaction.insertOne(requestdocs);
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/public/reports', async (req, res) => {
+    try {
+        const requestdocs = req.body;
+        const collections = await getCollections();
+        const result = await collections.reportsCollaction.find(requestdocs).toArray();
+        res.json(result);
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/owncitizen/pegination/reports', async (req, res) => {
+    try {
+        const { page = 1, limit = 10 } = req.query;
+        const skip = (Number(page) - 1) * Number(limit);
+        const query: { citizenEmail?: string } = {};
+
+        if (req.query.citizenEmail) {
+            query.citizenEmail = req.query.citizenEmail as string;
+        }
+        const collections = await getCollections();
+        const result = await collections.reportsCollaction.find(query).skip(skip).limit(Number(limit)).toArray();
+        const totalData = await collections.reportsCollaction.countDocuments(query);
+        const totalPage = Math.ceil(totalData / Number(limit));
+        res.json({ data: result, page: Number(page), totalPage });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/adminofficer/pegination/reports', async (req, res) => {
+    try {
+        const { page = 1, limit = 10 } = req.query;
+        const skip = (Number(page) - 1) * Number(limit);
+        const collections = await getCollections();
+        const result = await collections.reportsCollaction.find().skip(skip).limit(Number(limit)).toArray();
+        const totalData = await collections.reportsCollaction.countDocuments();
+        const totalPage = Math.ceil(totalData / Number(limit));
+        res.json({ data: result, page: Number(page), totalPage });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
 });
 
 
-
-
-
-        app.post('/api/usercollaction', async (req, res) => {
-            const userdocs = req.body
-            const result = await userCollaction.insertOne(userdocs)
-            res.json(result)
-        })
-        app.get('/api/usercollaction', async (req, res) => {
-            const result = await userCollaction.find().toArray()
-            res.json(result)
-        })
-
-        app.post('/api/notice',verifyToken, async (req, res) => {
-            const newnotice = req.body
-            const result = await notice.insertOne(newnotice)
-            res.json(result)
-        })
-        app.post('/api/campaing', async (req, res) => {
-            const newcampaing = req.body
-            const result = await campaing.insertOne(newcampaing)
-            res.json(result)
-        })
-        app.get('/api/campaing', async (req, res) => {
-            const result = await campaing.find().toArray()
-            res.json(result)
-        })
-        app.get('/api/campaing/:id', async (req, res) => {
-            const { id } = req.params;
-            const fillter = {
-                _id: new ObjectId(id)
-            }
-            const result = await campaing.find(fillter).toArray()
-            res.json(result)
-        })
-        app.patch('/api/campaing/:id', async (req, res) => {
-            const { id } = req.params;
-            const attendeeData = req.body;
-
-            const query = { _id: new ObjectId(id) };
-
-
-            const updateDocument = {
-                $push: {
-                    attendees: {
-                        name: attendeeData.name,
-                        email: attendeeData.email,
-                        attendedAt: new Date()
-                    }
-                }
-            } as any;
-
-            try {
-                const result = await campaing.updateOne(query, updateDocument);
-                res.json(result);
-            } catch (error) {
-                console.error("Database update error:", error);
-                res.status(500).json({ error: "Failed to update attendance" });
-            }
-        });
-
-
-
-
-
-
-        app.post('/api/funding', async (req, res) => {
-            const fundingdetails = req.body
-            const result = await funding.insertOne(fundingdetails)
-            res.json(result)
-        })
-        app.get('/api/funding', async (req, res) => {
-            const cursor = await funding.find().toArray()
-            res.json(cursor)
-        })
-        app.get('/api/reports', async (req, res) => {
-            const cursor = await reportsCollaction.find().toArray()
-            res.json(cursor)
-        })
-        app.get('/api/pegination/funding', async (req, res) => {
-            const { page = 1, limit = 10 } = req.query
-            const skip = (Number(page) - 1) * Number(limit)
-
-
-            const result = await funding.find().skip(skip).limit(Number(limit)).toArray()
-            const totalData = await funding.countDocuments();
-            const totalPage = Math.ceil(totalData / Number(limit));
-            res.json({ data: result, page: Number(page), totalPage })
-        })
-
-
-
-
-        app.patch('/api/report/edit/:id', async (req, res) => {
-            const id = req.params.id
-
-            const updateData = req.body
-
-
-            const fillter = { _id: new ObjectId(id) }
-            const updateDocument = {
-                $set: { ...updateData }
-            }
-
-            const result = await reportsCollaction.updateOne(fillter, updateDocument)
-            res.json(result)
-
-        })
-
-        app.get('/api/reports/:id', async (req, res) => {
-            const id = req.params.id
-
-
-
-
-            const fillter = { _id: new ObjectId(id) }
-
-
-            const result = await reportsCollaction.findOne(fillter)
-            res.json(result)
-
-        })
-
-
-
-
-
-
-        app.delete('/api/own/reports/:id', async (req, res) => {
-            const id = req.params.id
-            const query = {
-                _id: new ObjectId(id)
-            }
-
-            const result = await reportsCollaction.deleteOne(query)
-            res.json(result)
-
-        })
-        app.delete('/api/campaing/:id', async (req, res) => {
-            const id = req.params.id
-            const query = {
-                _id: new ObjectId(id)
-            }
-
-            const result = await campaing.deleteOne(query)
-            res.json(result)
-
-        })
-        app.delete('/api/notice/:id', async (req, res) => {
-            const id = req.params.id
-            const query = {
-                _id: new ObjectId(id)
-            }
-
-            const result = await notice.deleteOne(query)
-            res.json(result)
-
-        })
-
-
-
-
-
-        app.patch('/api/usercollaction/makeblock',verifyToken, async (req, res) => {
-            const query: { email?: string } = {};
-            if (req.query.email) {
-                query.email = req.query.email as string
-            }
-            const updateDocument = {
-                $set: {
-                    status: 'blocked'
-                }
-            }
-
-            const result = await userCollaction.updateOne(query, updateDocument)
-
-            res.json(result)
-
-        })
-        app.patch('/api/usercollaction/unblocked',verifyToken, async (req, res) => {
-            const query: { email?: string } = {};
-            if (req.query.email) {
-                query.email = req.query.email as string
-            }
-            const updateDocument = {
-                $set: {
-                    status: 'active'
-                }
-            }
-
-            const result = await userCollaction.updateOne(query, updateDocument)
-
-            res.json(result)
-
-        })
-        app.patch('/api/reports/inprogress/:id', async (req, res) => {
-            const id = req.params.id
-
-            const fillter = { _id: new ObjectId(id) }
-            const updateDocument = {
-                $set: {
-                    status: 'inprogress'
-                }
-            }
-
-            const result = await reportsCollaction.updateOne(fillter, updateDocument)
-
-            res.json(result)
-
-        })
-
-
-        app.patch('/api/reports/cancelled/:id', async (req, res) => {
-            const id = req.params.id
-
-            const fillter = { _id: new ObjectId(id) }
-            const updateDocument = {
-                $set: {
-                    status: 'cancelled'
-                }
-            }
-
-            const result = await reportsCollaction.updateOne(fillter, updateDocument)
-
-            res.json(result)
-
-        })
-
-
-        app.patch('/api/reports/resolved/:id', async (req, res) => {
-            const id = req.params.id
-
-            const fillter = { _id: new ObjectId(id) }
-            const updateDocument = {
-                $set: {
-                    status: 'resolved'
-                }
-            }
-
-            const result = await reportsCollaction.updateOne(fillter, updateDocument)
-
-            res.json(result)
-
-        })
-
-        app.patch('/api/usercollaction/makeofficer',verifyToken, async (req, res) => {
-            const query: { email?: string } = {};
-            if (req.query.email) {
-                query.email = req.query.email as string
-            }
-            const updateDocument = {
-                $set: {
-                    role: 'officer'
-                }
-            }
-
-            const result = await userCollaction.updateOne(query, updateDocument)
-
-            res.json(result)
-
-        })
-        app.patch('/api/usercollaction/suspend',verifyToken, async (req, res) => {
-            const query: { email?: string } = {};
-            if (req.query.email) {
-                query.email = req.query.email as string
-            }
-            const updateDocument = {
-                $set: {
-                    status: 'suspended'
-                }
-            }
-
-            const result = await userCollaction.updateOne(query, updateDocument)
-
-            res.json(result)
-
-        })
-        app.patch('/api/usercollaction/unsuspend',verifyToken, async (req, res) => {
-            const query: { email?: string } = {};
-            if (req.query.email) {
-                query.email = req.query.email as string
-            }
-            const updateDocument = {
-                $set: {
-                    status: 'active'
-                }
-            }
-
-            const result = await userCollaction.updateOne(query, updateDocument)
-
-            res.json(result)
-
-        })
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        app.get('/api/notice', async (req, res) => {
-            const result = await notice.find().toArray()
-            res.json(result)
-        })
-        app.get('/api/publiccomments', async (req, res) => {
-            const newcommemts = req.body
-            const result = await publicComments.find(newcommemts).toArray()
-            res.json(result)
-        })
-        app.get('/api/own/publiccomments', async (req, res) => {
-            try {
-                const { reportId } = req.query;
-
-                let query = {};
-                if (reportId) {
-                    query = { reportId: reportId };
-                }
-
-                const result = await publicComments.find(query).toArray();
-                res.json(result);
-            } catch (error) {
-                res.status(500).json({ error: "Failed to fetch comments" });
-            }
-        });
-        app.post('/api/publiccomments', async (req, res) => {
-            const newcommemts = req.body
-            const result = await publicComments.insertOne(newcommemts)
-            res.json(result)
-        })
-
-        app.get('/api/own/usercollaction', async (req, res) => {
-            const query: { email?: string } = {};
-            if (req.query.email) {
-                query.email = req.query.email as string;
-            }
-            const corsor = await userCollaction.findOne(query)
-            res.json(corsor)
-        })
-        app.patch('/api/own/usercollaction', async (req, res) => {
-            const query: { email?: string } = {};
-            const updateData = req.body
-            if (req.query.email) {
-                query.email = req.query.email as string;
-            }
-            const updateDocument = {
-                $set: { ...updateData }
-            }
-
-            const corsor = await userCollaction.updateOne(query, updateDocument)
-            const result = await users.updateOne({ email: req.query.email as string }, {
-                $set: {
-                    name: updateData.name,
-                    image: updateData.image
-                }
-            })
-            res.json({ corsor, result })
-        })
-
-
-
-        app.get('/api/pegination/users', async (req, res) => {
-            const { page = 1, limit = 10 } = req.query
-            const skip = (Number(page) - 1) * Number(limit)
-
-
-            const result = await userCollaction.find().skip(skip).limit(Number(limit)).toArray()
-            const totalData = await userCollaction.countDocuments();
-            const totalPage = Math.ceil(totalData / Number(limit));
-            res.json({ data: result, page: Number(page), totalPage })
-        })
-        app.get('/api/pegination/campaing', async (req, res) => {
-            const { page = 1, limit = 10 } = req.query
-            const skip = (Number(page) - 1) * Number(limit)
-
-
-            const result = await campaing.find().skip(skip).limit(Number(limit)).toArray()
-            const totalData = await campaing.countDocuments();
-            const totalPage = Math.ceil(totalData / Number(limit));
-            res.json({ data: result, page: Number(page), totalPage })
-        })
-
-
-
-        app.post('/api/reports', async (req, res) => {
-            const requestdocs = req.body
-            const result = await reportsCollaction.insertOne(requestdocs)
-            res.json(result)
-        })
-        app.get('/api/public/reports', async (req, res) => {
-            const requestdocs = req.body
-            const result = await reportsCollaction.find(requestdocs).toArray()
-            res.json(result)
-        })
-
-        app.get('/api/owncitizen/pegination/reports', async (req, res) => {
-            const { page = 1, limit = 10 } = req.query
-            const skip = (Number(page) - 1) * Number(limit)
-            const query: { citizenEmail?: string } = {};
-
-            if (req.query.citizenEmail) {
-                query.citizenEmail = req.query.citizenEmail as string
-            }
-            const result = await reportsCollaction.find(query).skip(skip).limit(Number(limit)).toArray()
-            const totalData = await reportsCollaction.countDocuments(query);
-            const totalPage = Math.ceil(totalData / Number(limit));
-            res.json({ data: result, page: Number(page), totalPage })
-        })
-        app.get('/api/adminofficer/pegination/reports', async (req, res) => {
-            const { page = 1, limit = 10 } = req.query
-            const skip = (Number(page) - 1) * Number(limit)
-
-
-            const result = await reportsCollaction.find().skip(skip).limit(Number(limit)).toArray()
-            const totalData = await reportsCollaction.countDocuments();
-            const totalPage = Math.ceil(totalData / Number(limit));
-            res.json({ data: result, page: Number(page), totalPage })
-        })
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-        // console.log("Pinged your deployment. You successfully connected to MongoDB!");
-    } finally {
-
-        // await client.close();
-    }
+if (process.env.NODE_ENV !== 'production') {
+    app.listen(port, () => {
+        console.log(`Example app listening on PORT ${port}`);
+    });
 }
-run().catch(console.dir);
 
 
-
-
-
-
-app.get('/', (req, res) => {
-    res.send('Hello World!')
-})
-
-app.listen(port, () => {
-    console.log(`Example app listening on PORT ${port}`)
-})
+export default app;
