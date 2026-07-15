@@ -104,6 +104,8 @@ async function run() {
 
 
 
+    
+
 
       
 
@@ -308,7 +310,7 @@ app.get('/api/unlike', async (req, res) => {
 
 
 
-        app.patch('/api/usercollaction/makeblock', async (req, res) => {
+        app.patch('/api/usercollaction/makeblock',verifyToken, async (req, res) => {
             const query: { email?: string } = {};
             if (req.query.email) {
                 query.email = req.query.email as string
@@ -324,7 +326,7 @@ app.get('/api/unlike', async (req, res) => {
             res.json(result)
 
         })
-        app.patch('/api/usercollaction/unblocked', async (req, res) => {
+        app.patch('/api/usercollaction/unblocked',verifyToken, async (req, res) => {
             const query: { email?: string } = {};
             if (req.query.email) {
                 query.email = req.query.email as string
@@ -390,7 +392,7 @@ app.get('/api/unlike', async (req, res) => {
 
         })
 
-        app.patch('/api/usercollaction/makeofficer', async (req, res) => {
+        app.patch('/api/usercollaction/makeofficer',verifyToken, async (req, res) => {
             const query: { email?: string } = {};
             if (req.query.email) {
                 query.email = req.query.email as string
@@ -406,7 +408,7 @@ app.get('/api/unlike', async (req, res) => {
             res.json(result)
 
         })
-        app.patch('/api/usercollaction/suspend', async (req, res) => {
+        app.patch('/api/usercollaction/suspend',verifyToken, async (req, res) => {
             const query: { email?: string } = {};
             if (req.query.email) {
                 query.email = req.query.email as string
@@ -422,7 +424,7 @@ app.get('/api/unlike', async (req, res) => {
             res.json(result)
 
         })
-        app.patch('/api/usercollaction/unsuspend', async (req, res) => {
+        app.patch('/api/usercollaction/unsuspend',verifyToken, async (req, res) => {
             const query: { email?: string } = {};
             if (req.query.email) {
                 query.email = req.query.email as string
