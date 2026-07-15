@@ -68,7 +68,7 @@ export const verifyToken = async (
 
   try {
     const { payload } = await jwtVerify(token, JWKS);
-    console.log(payload,'play');
+    
     
 
     req.user = payload;
@@ -99,6 +99,54 @@ async function run() {
         const campaing = database.collection('campaing')
         const publicComments = database.collection('publiccomments')
         const funding = database.collection('funding')
+        const like=database.collection('like')
+        const unlike=database.collection('unlike')
+
+
+
+
+      
+
+app.post('/api/like', async (req, res) => {
+    const { reportId } = req.body;
+    if (!reportId) return res.status(400).json({ error: "reportId is required" });
+    
+   
+    const result = await like.insertOne({ reportId, createdAt: new Date() });
+    res.json(result);
+});
+
+
+app.get('/api/like', async (req, res) => {
+    const { reportId } = req.query;
+    if (!reportId) return res.status(400).json({ error: "reportId is required" });
+    
+    
+    const count = await like.countDocuments({ reportId });
+    res.json({ count });
+});
+
+
+app.post('/api/unlike', async (req, res) => {
+    const { reportId } = req.body;
+    if (!reportId) return res.status(400).json({ error: "reportId is required" });
+    
+    const result = await unlike.insertOne({ reportId, createdAt: new Date() });
+    res.json(result);
+});
+
+
+app.get('/api/unlike', async (req, res) => {
+    const { reportId } = req.query;
+    if (!reportId) return res.status(400).json({ error: "reportId is required" });
+    
+    const count = await unlike.countDocuments({ reportId });
+    res.json({ count });
+});
+
+
+
+
 
         app.post('/api/usercollaction', async (req, res) => {
             const userdocs = req.body
